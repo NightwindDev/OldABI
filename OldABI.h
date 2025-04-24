@@ -4,5 +4,6 @@
 
 #include <stdio.h>
 #include "patchfind.h"
+#include "subtype.h"
 
 #endif /* OldABI_h */

@@ -1,10 +1,7 @@
 #import <mach-o/dyld.h>
-#import <objc/runtime.h>
-#import <dlfcn.h>
 #import <mach/mach.h>
-#import <Foundation/Foundation.h>
 
-int memcmp_masked(const void *str1, const void *str2, unsigned char *mask, size_t n)
+static int memcmp_masked(const void *str1, const void *str2, unsigned char *mask, size_t n)
 {
     const unsigned char *p = (const unsigned char*)str1;
     const unsigned char *q = (const unsigned char*)str2;
@@ -22,7 +19,7 @@ int memcmp_masked(const void *str1, const void *str2, unsigned char *mask, size_
     return 0;
 }
 
-void *_patchfind_in_region(vm_address_t startAddr, vm_offset_t regionLength, unsigned char *bytesToSearch, unsigned char *byteMask, size_t byteCount)
+static void *_patchfind_in_region(vm_address_t startAddr, vm_offset_t regionLength, unsigned char *bytesToSearch, unsigned char *byteMask, size_t byteCount)
 {
     if (byteCount < 1) {
         return NULL;
@@ -30,7 +27,7 @@ void *_patchfind_in_region(vm_address_t startAddr, vm_offset_t regionLength, uns
 
     unsigned int firstByteIndex = 0;
     if (byteMask != NULL) {
-        for (size_t i = 0; i < byteCount; i++) {
+        for (unsigned int i = 0; i < byteCount; i++) {
             if (byteMask[i] == 0xFF) {
                 firstByteIndex = i;
                 break;
@@ -98,12 +95,12 @@ void *patchfind_seek_back(void *startPtr, uint32_t toInstruction, uint32_t mask,
     return NULL;
 }
 
-void *patchfind_find(int imageIndex, unsigned char *bytesToSearch, unsigned char *byteMask, size_t byteCount)
+void *patchfind_find(unsigned int imageIndex, unsigned char *bytesToSearch, unsigned char *byteMask, size_t byteCount)
 {
     intptr_t baseAddr = _dyld_get_image_vmaddr_slide(imageIndex);
     struct mach_header_64 *header = (struct mach_header_64*)_dyld_get_image_header(imageIndex);
 
-    const struct segment_command_64 *cmd;
+    const struct segment_command_64 *cmd = NULL;
 
     uintptr_t addr = (uintptr_t)(header + 1);
     uintptr_t endAddr = addr + header->sizeofcmds;
@@ -113,7 +110,7 @@ void *patchfind_find(int imageIndex, unsigned char *bytesToSearch, unsigned char
 
         addr = addr + cmd->cmdsize;
 
-        if (cmd->cmd != LC_SEGMENT_64 || strcmp(cmd->segname, "__TEXT")) {
+        if (cmd->cmd != LC_SEGMENT_64 || strcmp(cmd->segname, SEG_TEXT)) {
             continue;
         }
 
@@ -121,11 +118,4 @@ void *patchfind_find(int imageIndex, unsigned char *bytesToSearch, unsigned char
     }
 
     return NULL;
-}
-
-extern void swift_ctor(void);
-
-__attribute__((constructor))
-static void ctor() {
-    swift_ctor();
 }
